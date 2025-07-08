@@ -25,13 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import axios from "axios"
 
+// Define structure for environment variable
 interface EnvironmentVariable {
   key: string
   value: string
   isSecret: boolean
 }
 
+// Define deployment configuration type
 interface DeploymentConfig {
   repoUrl: string
   repoName: string
@@ -39,9 +42,7 @@ interface DeploymentConfig {
   dockerfilePath: string
   contextDir: string
   composePath: string
-  imageName: string
   targetPort: string
-  hostPort: string
   environmentVariables: EnvironmentVariable[]
   autoRedeploy: boolean
   buildArgs: string
@@ -49,8 +50,12 @@ interface DeploymentConfig {
 
 export default function NewDeploymentForm() {
   const router = useRouter()
+
+  // Submission and visibility state
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSecrets, setShowSecrets] = useState(false)
+
+  // Initialize default form values
   const [config, setConfig] = useState<DeploymentConfig>({
     repoUrl: "",
     repoName: "",
@@ -58,23 +63,22 @@ export default function NewDeploymentForm() {
     dockerfilePath: "./Dockerfile",
     contextDir: ".",
     composePath: "",
-    imageName: "",
     targetPort: "",
-    hostPort: "",
     environmentVariables: [],
     autoRedeploy: true,
     buildArgs: "",
   })
 
+  // Updates repo URL and auto-extracts repo name from URL
   const handleRepoUrlChange = (url: string) => {
     setConfig((prev) => ({
       ...prev,
       repoUrl: url,
       repoName: url ? url.split("/").pop()?.replace(".git", "") || "" : "",
-      imageName: url ? `${url.split("/").pop()?.replace(".git", "") || ""}:latest` : "",
     }))
   }
 
+  // Adds a new empty environment variable input field
   const addEnvironmentVariable = () => {
     setConfig((prev) => ({
       ...prev,
@@ -82,6 +86,7 @@ export default function NewDeploymentForm() {
     }))
   }
 
+  // Updates a specific field (key/value/isSecret) of an env var
   const updateEnvironmentVariable = (
     index: number,
     field: keyof EnvironmentVariable,
@@ -95,6 +100,7 @@ export default function NewDeploymentForm() {
     }))
   }
 
+  // Removes an environment variable by index
   const removeEnvironmentVariable = (index: number) => {
     setConfig((prev) => ({
       ...prev,
@@ -102,58 +108,82 @@ export default function NewDeploymentForm() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Validates that required fields are filled
+  const isFormValid = config.repoUrl && config.repoName
+
+  // Submits the form to backend
+  const submitForm = async () => {
+    if (!isFormValid) return
     setIsSubmitting(true)
+
     try {
-      console.log("Creating deployment with config:", config)
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-      router.push("/")
-    } catch (error) {
-      console.error("Failed to create deployment:", error)
+      const payload = {
+        name: config.repoName,
+        repository: config.repoUrl,
+        dockerFilePath: config.dockerfilePath,
+        branch: config.branch,
+        composeFilePath: config.composePath || undefined,
+        contextDir: config.contextDir,
+        port: config.targetPort,
+        autoRedeploy: config.autoRedeploy,
+      }
+
+      console.log("Sending to backend:", payload)
+
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deployment`, payload)
+
+      if (res.status === 200 || res.status === 201) {
+        router.push("/dashboard")
+      } else {
+        console.error("Deployment failed with status:", res.status)
+      }
+    } catch (err) {
+      console.error("Error during deployment:", err)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const isFormValid = config.repoUrl && config.repoName && config.imageName
-
   return (
     <div className="min-h-screen bg-gray-50">
-        <header className="bg-white border-b border-gray-200">
-            <div className="mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between py-6">
-                    <div className="flex items-center space-x-4">
-                        <Link href="/dashboard">
-                            <Button variant="ghost" size="sm">
-                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                Back to Dashboard
-                            </Button>
-                        </Link>
-                    </div>
-                    <div className="flex flex-col items-center flex-1">
-                        <h1 className="text-2xl font-bold text-gray-900 text-center">Dockscope</h1>
-                        <p className="text-sm text-gray-500 text-center">Configure and deploy a new containerized app</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                        <Button
-                            type="button"
-                            variant="destructive"
-                            className="min-w-[80px]"
-                            onClick={() => router.push("/")}
-                        >
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSubmit} disabled={!isFormValid || isSubmitting} className="min-w-[120px]">
-                            {isSubmitting ? "Creating..." : "Create Deployment"}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        </header>
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-6">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
+              </Button>
+            </Link>
 
+            <div className="flex flex-col items-center flex-1">
+              <h1 className="text-2xl font-bold text-gray-900 text-center">Dockscope</h1>
+              <p className="text-sm text-gray-500 text-center">Configure and deploy a new containerized app</p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Button type="button" variant="destructive" onClick={() => router.push("/")}>
+                Cancel
+              </Button>
+              <Button
+                onClick={(e) => {
+                  e.preventDefault()
+                  submitForm()
+                }}
+                disabled={!isFormValid || isSubmitting}
+              >
+                {isSubmitting ? "Creating..." : "Create Deployment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Form */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form className="space-y-8">
+
           {/* Repository Configuration */}
           <Card>
             <CardHeader>
@@ -209,12 +239,6 @@ export default function NewDeploymentForm() {
                 value={config.contextDir}
                 onChange={(e) => setConfig({ ...config, contextDir: e.target.value })}
               />
-              <Label htmlFor="imageName">Image Name</Label>
-              <Input
-                id="imageName"
-                value={config.imageName}
-                onChange={(e) => setConfig({ ...config, imageName: e.target.value })}
-              />
               <Label htmlFor="composePath">Compose File Path (optional)</Label>
               <Input
                 id="composePath"
@@ -243,12 +267,6 @@ export default function NewDeploymentForm() {
                 id="targetPort"
                 value={config.targetPort}
                 onChange={(e) => setConfig({ ...config, targetPort: e.target.value })}
-              />
-              <Label htmlFor="hostPort">Host Port (Optional)</Label>
-              <Input
-                id="hostPort"
-                value={config.hostPort}
-                onChange={(e) => setConfig({ ...config, hostPort: e.target.value })}
               />
             </CardContent>
           </Card>
@@ -293,7 +311,7 @@ export default function NewDeploymentForm() {
             </CardContent>
           </Card>
 
-          {/* Auto-Redeploy */}
+          {/* Deployment Options */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Deployment Options</CardTitle>
@@ -314,14 +332,6 @@ export default function NewDeploymentForm() {
               />
             </CardContent>
           </Card>
-
-          {/* Form Actions */}
-          <div className="flex items-center justify-end space-x-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={() => router.push("/")}>Cancel</Button>
-            <Button type="submit" disabled={!isFormValid || isSubmitting} className="min-w-[140px]">
-              {isSubmitting ? "Creating..." : "Create Deployment"}
-            </Button>
-          </div>
         </form>
       </main>
     </div>

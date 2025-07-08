@@ -4,7 +4,7 @@ import {
   IsString,
   MinLength,
   IsOptional,
-  IsArray,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateDeploymentDTO {
@@ -30,10 +30,11 @@ export class CreateDeploymentDTO {
   contextDir: string;
 
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  portNumbers: string[];
+  @IsString()
+  @Expose()
+  port: string;
 
+  @IsOptional()
   @IsString()
   @Expose()
   composeFilePath?: string; // Optional field for docker-compose.yml path
@@ -42,6 +43,10 @@ export class CreateDeploymentDTO {
   @IsNotEmpty()
   @Expose()
   branch: string;
+
+  @IsBoolean()
+  @Expose()
+  autoRedeploy: boolean;
 }
 
 // this is the data that is stored in the database

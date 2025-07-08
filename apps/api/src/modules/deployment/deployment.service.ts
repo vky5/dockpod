@@ -49,6 +49,8 @@ export class DeploymentService {
       branch: deploymentData.branch,
       contextDir: deploymentData.contextDir,
       composeFilePath: deploymentData.composeFilePath || undefined,
+      portNumber: deploymentData.port,
+      autoRedeploy: deploymentData.autoRedeploy,
       user: { id: userId },
     });
 

@@ -56,6 +56,9 @@ export class Deployment {
   @Column({ type: 'varchar', nullable: true })
   portNumber: string;
 
+  @Column({ type: 'boolean', default: true })
+  autoRedeploy: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

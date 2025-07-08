@@ -16,32 +16,46 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = context.getResponse<Response>();
 
     let status = 500; // Default to 500 Internal Server Error
-    let message = 'Internal Server Error';
+    let message: string | string[] = 'Internal Server Error';
 
     if (exception instanceof HttpException) {
       // If it's an instance of HttpException, get status and message
       status = exception.getStatus();
-      message = exception.message || 'Internal Server Error';
+      const res = exception.getResponse();
+
+      // If it's an object and contains a 'message' key (e.g., ValidationPipe errors)
+      if (typeof res === 'object' && res !== null && 'message' in res) {
+        const typed = res as { message: string | string[] };
+        message = typed.message;
+      } else if (typeof res === 'string') {
+        message = res;
+      }
     } else if (exception instanceof Error) {
       // For regular errors, use the message
       message = exception.message || 'Internal Server Error';
     }
 
-    const resObj = {
+    const resObj: Record<string, unknown> = {
       status: 'error',
       message,
     };
 
     // Log the exception (stack trace in development)
     // TODO close it in production
-    this.logger.error(exception instanceof Error ? exception.stack : message);
+    this.logger.error(
+      exception instanceof Error ? exception.stack : JSON.stringify(exception),
+    );
 
     // If in development mode, add the stack trace for debugging
-    if (process.env.NODE_ENV === 'development' && exception instanceof Error) {
-      response.status(status).json({ ...resObj, error: exception.stack });
-    } else {
-      // In production or any other environment, omit the stack trace
-      response.status(status).json(resObj);
+    if (
+      process.env.NODE_ENV === 'development' &&
+      exception instanceof Error &&
+      exception.stack
+    ) {
+      resObj.error = exception.stack;
     }
+
+    // In production or any other environment, omit the stack trace
+    response.status(status).json(resObj);
   }
 }
