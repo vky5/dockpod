@@ -6,113 +6,115 @@ import { HeaderBar } from "@/components/HeaderBar"
 import { DeploymentCard } from "@/components/DeploymentCard"
 import { EmptyState } from "@/components/EmptyState"
 import { useRouter } from "next/navigation"
-
-const mockDeployments: Deployment[] = [
-  {
-    id: "dep_1a2b3c4d",
-    repoName: "frontend-app",
-    repoUrl: "https://github.com/company/frontend-app",
-    status: "running",
-    boundPort: 3000,
-    imageName: "frontend-app:latest",
-    dockerfilePath: "./Dockerfile",
-    contextDir: ".",
-    composePath: null,
-    lastUpdated: "2024-01-07T10:25:00Z",
-    logs: ["Starting application...", "Server listening on port 3000", "Application ready"],
-  },
-  {
-    id: "dep_5e6f7g8h",
-    repoName: "api-service",
-    repoUrl: "https://github.com/company/api-service",
-    status: "building",
-    boundPort: null,
-    imageName: "api-service:v1.2.0",
-    dockerfilePath: "./docker/Dockerfile",
-    contextDir: "./src",
-    composePath: "./docker-compose.yml",
-    lastUpdated: "2024-01-07T10:20:00Z",
-    logs: ["Cloning repository...", "Building Docker image...", "Step 3/8: RUN npm install"],
-  },
-  {
-    id: "dep_9i0j1k2l",
-    repoName: "worker-queue",
-    repoUrl: "https://github.com/company/worker-queue",
-    status: "failed",
-    boundPort: null,
-    imageName: "worker-queue:main",
-    dockerfilePath: "./Dockerfile",
-    contextDir: ".",
-    composePath: null,
-    lastUpdated: "2024-01-07T10:15:00Z",
-    logs: ["Starting build...", "ERROR: Package not found", "Build failed with exit code 1"],
-  },
-  {
-    id: "dep_3m4n5o6p",
-    repoName: "database",
-    repoUrl: "https://github.com/company/database",
-    status: "stopped",
-    boundPort: null,
-    imageName: "postgres:14",
-    dockerfilePath: null,
-    contextDir: ".",
-    composePath: "./docker-compose.yml",
-    lastUpdated: "2024-01-07T09:45:00Z",
-    logs: ["Container stopped by user"],
-  },
-]
+import axios from "axios"
 
 export default function DashboardPage() {
-  const [deployments, setDeployments] = useState<Deployment[]>(mockDeployments)
+  const [deployments, setDeployments] = useState<Deployment[]>([])
   const [isRefreshing, setIsRefreshing] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
+    fetchDeployments()
+  }, [])
+
+  const fetchDeployments = async () => {
+    try {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deployment`)
+      const transformed: Deployment[] = res.data.map((d: any) => {
+        const repoUrl = d.repository?.startsWith("http")
+          ? d.repository
+          : `https://github.com/unknown/${d.name}`
+
+        return {
+          id: d.id,
+          repoName: d.name || "unknown",
+          repoUrl,
+          status: mapStatus(d.deploymentStatus),
+          boundPort: d.portNumber ? parseInt(d.portNumber) : null,
+          imageName: `${d.name}:latest`,
+          dockerfilePath: d.dockerFilePath,
+          contextDir: d.contextDir,
+          composePath: d.composeFilePath,
+          lastUpdated: d.updatedAt,
+          logs: [],
+        }
+      })
+      setDeployments(transformed)
+    } catch (err) {
+      console.error("Failed to fetch deployments:", err)
+    }
+  }
+
+  const mapStatus = (status: string): DeploymentStatus => {
+    switch (status.toLowerCase()) {
+      case "building":
+      case "cloned":
+      case "built":
+        return "building"
+      case "ready":
+        return "running"
+      case "stopped":
+        return "stopped"
+      default:
+        return "pending"
+    }
+  }
+
+  const handleRefresh = async () => {
+  setIsRefreshing(true)
+
+  // const delay = new Promise((res) => setTimeout(res, 500)) // ensure at least 500ms 
+  await Promise.all([fetchDeployments(),
+    //  delay
+    ])
+
+  setIsRefreshing(false)
+}
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      setDeployments((prev) =>
-        prev.map((dep) => {
-          if (dep.status === "building" && Math.random() > 0.7) {
-            return {
-              ...dep,
-              status: "running" as DeploymentStatus,
-              boundPort: 3000 + Math.floor(Math.random() * 1000),
-            }
-          }
-          return dep
-        })
-      )
-    }, 5000)
+      handleRefresh()
+    }, 1 * 60 * 1000) // 1 minutes
+
     return () => clearInterval(interval)
   }, [])
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setIsRefreshing(false)
-  }
-
   const handleAction = async (id: string, action: "trigger" | "stop" | "delete") => {
     if (action === "delete") {
-      setDeployments((prev) => prev.filter((dep) => dep.id !== id))
+      try {
+        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deployment/delete/${id}`)
+        setDeployments((prev) => prev.filter((dep) => dep.id !== id))
+      } catch (err) {
+        console.error("Delete failed:", err)
+      }
     } else if (action === "trigger") {
-      setDeployments((prev) =>
-        prev.map((dep) =>
-          dep.id === id ? { ...dep, status: "building", boundPort: null } : dep
+      try {
+        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deployment/build/${id}`)
+        setDeployments((prev) =>
+          prev.map((dep) =>
+            dep.id === id ? { ...dep, status: "building", boundPort: null } : dep
+          )
         )
-      )
+      } catch (err) {
+        console.error("Build trigger failed:", err)
+      }
     } else if (action === "stop") {
-      setDeployments((prev) =>
-        prev.map((dep) =>
-          dep.id === id ? { ...dep, status: "stopped", boundPort: null } : dep
+      try {
+        await axios.post(`${process.env.NEXT_PUBLIC_BACKEND_URL}/deployment/stop/${id}`)
+        setDeployments((prev) =>
+          prev.map((dep) =>
+            dep.id === id ? { ...dep, status: "stopped", boundPort: null } : dep
+          )
         )
-      )
+      } catch (err) {
+        console.error("Stop failed:", err)
+      }
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <HeaderBar onRefresh={handleRefresh} isRefreshing={isRefreshing} />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Active Deployments</h2>

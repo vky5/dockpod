@@ -89,7 +89,7 @@ export function DeploymentCard({
               }}
               disabled={deployment.status === "building"}
             >
-              Trigger
+              {deployment.status === "running" ? "Launch" : "Build"}
             </Button>
             <Button
               size="sm"
@@ -106,6 +106,7 @@ export function DeploymentCard({
             <Button
               size="sm"
               variant="destructive"
+              className="hover:cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete(deployment.id)
@@ -129,5 +130,5 @@ export function DeploymentCard({
     </Card>
   )
 }
-export type { DeploymentStatus }
 
+export type { DeploymentStatus }

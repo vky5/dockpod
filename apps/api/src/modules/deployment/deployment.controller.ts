@@ -23,6 +23,12 @@ import { DeploymentOwnershipGuard } from './guards/deployment-ownership.guard';
 @Controller('deployment')
 export class DeploymentController {
   constructor(private deploymentService: DeploymentService) {}
+  // get all the deploymentInfo
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  getAllDeployment() {
+    return this.deploymentService.allDeployments();
+  }
 
   // route to create a new deployment
   @Post()
@@ -99,9 +105,9 @@ export class DeploymentController {
 
 /*
 - [x] Route to create a new deployment
-- [x] route to add endpoints 
+- [x] route to add endpoints
 - [x] route to update endpoints
-- [x] route to delete endpoints 
+- [x] route to delete endpoints
 - [x] route to update deployment fields
 
 */

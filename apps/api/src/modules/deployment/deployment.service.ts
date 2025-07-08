@@ -22,6 +22,10 @@ export class DeploymentService {
     private deploymentRepo: Repository<Deployment>,
     private readonly messageingQueueService: MessagingQueueService,
   ) {}
+  // get all the Deployment from th database;
+  allDeployments() {
+    return this.deploymentRepo.find();
+  }
 
   // for creating a new deployment
   async createDeployment(

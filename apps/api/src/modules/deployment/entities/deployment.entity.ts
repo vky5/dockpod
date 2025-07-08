@@ -39,6 +39,7 @@ export class Deployment {
   @Column({ type: 'varchar', length: 255, nullable: true })
   deployedUrl: string;
 
+  @Column({ type: 'enum', nullable: true })
   @Column({
     type: 'enum',
     enum: DeploymentStatus,
