@@ -1,4 +1,10 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Channel, ChannelModel, connect } from 'amqplib';
 import { PublishDeploymentMessageDto } from './dto/publish-message.dto';
@@ -23,6 +29,7 @@ export class MessagingQueueService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly configService: ConfigService,
+    @Inject(forwardRef(() => DeploymentService))
     private readonly deploymentService: DeploymentService,
   ) {}
 

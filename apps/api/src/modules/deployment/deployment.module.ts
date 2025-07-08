@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { DeploymentController } from './deployment.controller';
 import { DeploymentService } from './deployment.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -13,9 +13,10 @@ import { MessagingQueueModule } from '../messaging-queue/messaging-queue.module'
   imports: [
     TypeOrmModule.forFeature([Deployment, Endpoint]),
     UsersModule,
-    MessagingQueueModule,
+    forwardRef(() => MessagingQueueModule),
   ],
   controllers: [DeploymentController],
   providers: [DeploymentService, EndpointService, DeploymentOwnershipGuard],
+  exports: [DeploymentService],
 })
 export class DeploymentModule {}
