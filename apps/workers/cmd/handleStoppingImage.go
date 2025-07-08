@@ -19,4 +19,9 @@ func handleStoppingImage(msg queue.DeploymentMessage) {
 	}
 
 	log.Printf("✅ Successfully stopped and cleaned up containers for image: %s", msg.Repository)
+
+	queue.PublishResponseToQueue(queue.ResultRoutingKey, queue.Response{
+		DeploymentID: msg.DeploymentID,
+		Status:       "stopped",
+	})
 }

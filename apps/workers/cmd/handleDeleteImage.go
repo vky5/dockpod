@@ -34,4 +34,11 @@ func handleDeleteImage(msg queue.DeploymentMessage) {
 	log.Printf("✅ Successfully deleted image: %s", msg.Repository)
 	store.DeleteWorker(msg.DeploymentID)
 	log.Printf("🗑️ Successfully deleted worker info from database: %s", msg.DeploymentID)
+
+	// sending the data to the main backend
+	queue.PublishResponseToQueue(queue.ResultRoutingKey, queue.Response{
+		DeploymentID: msg.DeploymentID,
+		Status:       "deleted",
+	})
+
 }

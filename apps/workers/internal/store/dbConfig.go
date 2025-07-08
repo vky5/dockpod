@@ -22,6 +22,7 @@ type Worker struct {
 	DockerfilePath sql.NullString
 	ContainerName  sql.NullString
 	Port           sql.NullInt64 // the port to which the container is listening at x:3000
+	AutoDeploy     bool          // whether this deployment should be auto-redeployed on updates
 }
 
 var DB *sql.DB // this is exported gloabally so other files in same package can use it without importing and passing as parameter
@@ -35,7 +36,6 @@ func InitDB(path string) error {
 		return err
 	}
 
-	// Optional: fine-tune SQLite connection for concurrency
 	DB.SetMaxOpenConns(1) // SQLite only allows 1 writer at a time, so keep it low
 	DB.SetMaxIdleConns(1)
 
@@ -43,7 +43,7 @@ func InitDB(path string) error {
 	createTable := `
 	CREATE TABLE IF NOT EXISTS worker (
 		deploymentId   TEXT PRIMARY KEY NOT NULL,
-		status         TEXT NOT NULL CHECK(status IN ('cloned', 'built', 'failed', 'building', "stopped")),
+		status         TEXT NOT NULL CHECK(status IN ('cloned', 'built', 'failed', 'building', 'stopped')),
 		createdAt      DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updatedAt      DATETIME DEFAULT CURRENT_TIMESTAMP,
 		composePath    TEXT UNIQUE,
@@ -51,7 +51,8 @@ func InitDB(path string) error {
 		contextDir     TEXT,
 		dockerfilePath TEXT,
 		containerName  TEXT,
-		port           INTEGER
+		port           INTEGER,
+		autoDeploy     INTEGER DEFAULT 1
 	);
 
 	`

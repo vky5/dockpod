@@ -17,6 +17,12 @@ type DeploymentMessage struct { // this is the message that is recieved from the
 	ContextDir      string `json:"contextDir"`
 	CreatedAt       string `json:"createdAt"`
 	PortNumber      string `json:"portNumber"` // the port number to which the container is listening at x:3000
+	AutoDeploy      bool
+}
+
+type Response struct {
+	DeploymentID string `json:"deploymentId"`
+	Status       string
 }
 
 var (

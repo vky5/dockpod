@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"log"
 	"worker/internal/builder"
+	"worker/internal/queue"
 	"worker/internal/store"
 	"worker/internal/tracker"
 )
@@ -28,8 +29,12 @@ func safeBuild(msg *builder.BuildImageOptions, deploymentId string) {
 			store.UpdateWorker(deploymentId, "failed", sql.NullString{Valid: false})
 			log.Printf("❌ Build failed: %v", err)
 		} else {
-			store.UpdateWorker(deploymentId, "built", sql.NullString{Valid: false})
-			tracker.DeleteEntry(deploymentId)
+			queue.PublishResponseToQueue(queue.ResultRoutingKey, queue.Response{ // sent the backend the response of built
+				DeploymentID: deploymentId,
+				Status:       "built",
+			})
+			store.UpdateWorker(deploymentId, "built", sql.NullString{Valid: false}) // storing in db that container is ready to run
+			tracker.DeleteEntry(deploymentId)                                       // deleting the entry from repos.json and the clonedrepo that we used
 			log.Println("✅ Build successful")
 		}
 

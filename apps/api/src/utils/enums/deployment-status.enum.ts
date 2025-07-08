@@ -5,6 +5,7 @@ export enum DeploymentStatus {
   BUILT = 'built',
   READY = 'ready',
   STOPPED = 'stopped',
+  DELETED = 'deleted',
 }
 
 //'cloned', 'built', 'failed', 'ready', 'removed', 'building', "stopped"

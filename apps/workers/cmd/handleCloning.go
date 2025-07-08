@@ -49,6 +49,7 @@ func handleCloningAndBuildingImage(msg queue.DeploymentMessage) {
 			ContextDir:     utils.ToNullString(msg.ContextDir),
 			DockerfilePath: utils.ToNullString(msg.DockerfilePath),
 			Port:           utils.ToNullInt(msg.PortNumber),
+			AutoDeploy:     msg.AutoDeploy,
 		}
 
 		log.Printf("Raw port string from message: %s", msg.PortNumber)
@@ -58,5 +59,6 @@ func handleCloningAndBuildingImage(msg queue.DeploymentMessage) {
 		} else {
 			log.Printf("✅ Wrote entry successfully in ./data/database.db %s\n", msg.DeploymentID)
 		}
+
 	}()
 }

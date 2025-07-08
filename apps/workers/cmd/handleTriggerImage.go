@@ -55,4 +55,10 @@ func handleTriggerImage(msg queue.DeploymentMessage) {
 	// Update status and container info
 	store.UpdateWorker(msg.DeploymentID, "running", sql.NullString{String: msg.Repository, Valid: true})
 	log.Printf("✅ Successfully triggered container for deployment %s", msg.DeploymentID)
+
+	// sending the info to the backend
+	queue.PublishResponseToQueue(queue.ResultRoutingKey, queue.Response{
+		DeploymentID: msg.DeploymentID,
+		Status:       "running", // this is equivalent to ready shoulda been consistent....
+	})
 }
