@@ -71,7 +71,7 @@ export class DeploymentService {
     });
 
     if (!deployment) {
-      throw new Error('Deployment not found');
+      throw new NotFoundException('Deployment not found');
     }
 
     const updateDeployment = this.deploymentRepo.merge(deployment, updateData);
@@ -180,5 +180,46 @@ export class DeploymentService {
     };
 
     this.messageingQueueService.publishMessage('blacktree.routingKey', message);
+  }
+
+  // update the status
+  async updateStatus(
+    deploymentId: string,
+    status: string,
+  ): Promise<Deployment> {
+    const deployment = await this.deploymentRepo.findOneBy({
+      id: deploymentId,
+    });
+
+    if (!deployment) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    let workerStatus: DeploymentStatus;
+    switch (status.toLowerCase()) {
+      case 'building':
+        workerStatus = DeploymentStatus.BUILDING;
+        break;
+      case 'cloned':
+        workerStatus = DeploymentStatus.CLONED;
+        break;
+      case 'built':
+        workerStatus = DeploymentStatus.BUILT;
+        break;
+      case 'deleted':
+        workerStatus = DeploymentStatus.DELETED;
+        break;
+      case 'running':
+        workerStatus = DeploymentStatus.READY;
+        break;
+      case 'stopped':
+        workerStatus = DeploymentStatus.STOPPED;
+        break;
+      default:
+        workerStatus = DeploymentStatus.PENDING;
+    }
+
+    deployment.deploymentStatus = workerStatus;
+    return this.deploymentRepo.save(deployment);
   }
 }

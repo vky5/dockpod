@@ -3,15 +3,15 @@
 package main
 
 import (
-	"worker/internal/queue"
 	"log"
+	"worker/internal/queue"
 )
 
 func consumeMessage(msg queue.DeploymentMessage) {
 
 	switch msg.Type {
 	case "build":
-		go handleCloningAndBuildingImage(msg)
+		go handleCloning(msg)
 	case "delete":
 		go handleDeleteImage(msg)
 	case "trigger":

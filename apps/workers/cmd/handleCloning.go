@@ -14,7 +14,7 @@ import (
 	"worker/internal/utils"
 )
 
-func handleCloningAndBuildingImage(msg queue.DeploymentMessage) {
+func handleCloning(msg queue.DeploymentMessage) {
 	input := repo.CloneRepoInput{
 		RepoURL: msg.Repository,
 		Branch:  msg.Branch,
@@ -33,6 +33,10 @@ func handleCloningAndBuildingImage(msg queue.DeploymentMessage) {
 			log.Printf("❌ Failed to clone repo for deployment %s: %v\n", msg.DeploymentID, err)
 			status = "failed"
 		} else {
+			queue.PublishResponseToQueue(queue.ResultQueue, queue.Response{
+				DeploymentID: msg.DeploymentID,
+				Status:       "cloned",
+			})
 			log.Printf("✅ Repo cloned successfully for deployment %s\n", msg.DeploymentID)
 		}
 

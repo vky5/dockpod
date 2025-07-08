@@ -5,16 +5,26 @@ import { PublishDeploymentMessageDto } from './dto/publish-message.dto';
 import { TriggerDeployment } from './dto/trigger-message.dto';
 import { DeleteDeployment } from './dto/delete-message.dto';
 import { StopMessage } from './dto/stop-message.dto';
+import { DeploymentService } from '../deployment/deployment.service';
 
 @Injectable()
 export class MessagingQueueService implements OnModuleInit, OnModuleDestroy {
   private connection: ChannelModel | null = null;
   private channel: Channel | null = null;
   private readonly exchange = 'blacktree.direct'; // implementing direct exchange
+
+  // this is for sending the messages to the worker
   private readonly queue = 'execute.queue'; // implementing queue
   private readonly routingKey = 'worker.execute'; // implementing routing key
 
-  constructor(private readonly configService: ConfigService) {}
+  // sending the messages to the backend to update the status of DeleteDeployment
+  private readonly resultQueue = 'api.result';
+  private readonly resultRoutingKey = 'status.queue';
+
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly deploymentService: DeploymentService,
+  ) {}
 
   // to run when the module is initialized in Dependency Injection
   async onModuleInit() {
@@ -39,9 +49,17 @@ export class MessagingQueueService implements OnModuleInit, OnModuleDestroy {
 
       // setting up binding rules and routing key to the queue in the exchange
       await this.channel?.bindQueue(this.queue, this.exchange, this.routingKey);
-      // console.log(
-      //   'Connected to RabbitMQ and exchange/queue are set up successfully',
-      // );
+
+      // assert result queue and consume it
+      await this.channel.assertQueue(this.resultQueue, { durable: true });
+      await this.channel.bindQueue(
+        this.resultQueue,
+        this.exchange,
+        this.resultRoutingKey,
+      );
+
+      // start listening to messages in result queue
+      await this.consumeResults();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unknown error occured';
@@ -96,5 +114,36 @@ export class MessagingQueueService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       console.error('Error closing RabbitMQ connection:', error);
     }
+  }
+
+  private async consumeResults() {
+    if (!this.channel) return; // dont proceseed if channel is not initialized
+
+    // start consuming messsages from result queue
+    await this.channel.consume(
+      this.resultQueue,
+      (msg) => {
+        if (msg !== null) {
+          // wrap async in IIFE and void it to silence eslint
+          void (async () => {
+            try {
+              const raw = JSON.parse(msg.content.toString()) as unknown;
+              const data = raw as { deploymentId: string; status: string };
+
+              const { deploymentId, status } = data;
+
+              // update status in backend
+              await this.deploymentService.updateStatus(deploymentId, status);
+
+              this.channel!.ack(msg); // acknowledge message
+            } catch (err) {
+              console.error('Failed to process result message:', err);
+              this.channel?.nack(msg, false, false); // discard bad message
+            }
+          })(); // void ensures eslint doesn’t complain about floating promises
+        }
+      },
+      { noAck: false }, // manual ack/nack enabled
+    );
   }
 }
