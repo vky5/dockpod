@@ -17,7 +17,7 @@ export function HeaderBar({ onRefresh, isRefreshing }: HeaderBarProps) {
               <Server className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">DockScope Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">DockPod Dashboard</h1>
               <p className="text-sm text-gray-500">Container Infrastructure Management</p>
             </div>
           </div>
